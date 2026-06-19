@@ -146,7 +146,7 @@ export default function App(){
   }
   async function sortearTimes(){
     if(confirmados.length<6) return aviso('Precisa de pelo menos 6 confirmados para sortear.'); setSorteando(true); setTimes([])
-    setTimeout(async()=>{ const resultado=sortearTimesBalanceados(); setTimes(resultado); setSorteando(false); const texto=resultado.map(time=>{ const linhas=time.jogadores.map(j=>`- ${j.nome} (${j.nivel})`); return `${time.nome}\n${linhas.join('\n')}` }).join('\n\n'); await supabase.from('volei_eventos').update({times:texto}).eq('id',eventoId); await carregarEventos(); aviso('Times sorteados e publicados 🐺') },1500)
+    setTimeout(async()=>{ const resultado=sortearTimesBalanceados(); setTimes(resultado); setSorteando(false); const texto=resultado.map(time=>{ const linhas=time.jogadores.map(j=>`- ${j.nome}`); return `${time.nome}\n${linhas.join('\n')}` }).join('\n\n'); await supabase.from('volei_eventos').update({times:texto}).eq('id',eventoId); await carregarEventos(); aviso('Times sorteados e publicados 🐺') },1500)
   }
   async function limparSorteio(){ await supabase.from('volei_eventos').update({times:''}).eq('id',eventoId); setTimes([]); await carregarEventos(); aviso('Sorteio limpo.') }
 
