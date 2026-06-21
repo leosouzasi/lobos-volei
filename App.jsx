@@ -152,8 +152,7 @@ export default function App(){
 
   return <div className="app"><div className="container">
 <header className="hero">
-  <div className="raio">🐺</div>
-  <h1>Lobos Vôlei</h1>
+  <h1>🐺 Lobos Vôlei</h1>
 
   <div
     style={{
