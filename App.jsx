@@ -156,7 +156,7 @@ export default function App(){
   Lobos Vôlei{' '}
   <span
     style={{
-      fontSize: '56px',
+      fontSize: '64px',
       verticalAlign: 'middle'
     }}
   >
