@@ -151,16 +151,20 @@ export default function App(){
   async function limparSorteio(){ await supabase.from('volei_eventos').update({times:''}).eq('id',eventoId); setTimes([]); await carregarEventos(); aviso('Sorteio limpo.') }
 
   return <div className="app"><div className="container">
-    <header className="hero">
+<header className="hero">
   <div className="raio">🐺</div>
   <h1>Lobos Vôlei</h1>
 
-  <div style={{
-    marginTop: '12px',
-    fontSize: '14px',
-    lineHeight: '1.8',
-    color: '#d8eaff'
-  }}>
+  <div
+    style={{
+      display: 'inline-block',
+      textAlign: 'left',
+      marginTop: '12px',
+      fontSize: '14px',
+      lineHeight: '1.8',
+      color: '#d8eaff'
+    }}
+  >
     <div>📍 F4 Esportes</div>
     <div>💰 Não mensalistas: R$ 7,00</div>
     <div>⚠️ Pagamento até 12h de quinta-feira.</div>
