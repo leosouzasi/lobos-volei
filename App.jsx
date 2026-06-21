@@ -167,7 +167,7 @@ export default function App(){
   >
     <div>📍 F4 Esportes</div>
     <div>💰 Não mensalistas: R$ 7,00</div>
-    <div>⚠️ Pagamento até 12h de quinta-feira.</div>
+    <div>⚠️ Pagamento até 12h de quinta-feira</div>
   </div>
 </header>
     {mensagem && <div className="toast">{mensagem}</div>}
