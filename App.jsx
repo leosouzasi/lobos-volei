@@ -152,7 +152,17 @@ export default function App(){
 
   return <div className="app"><div className="container">
 <header className="hero">
-  <h1>🐺 Lobos Vôlei</h1>
+  <h1>
+  <span
+    style={{
+      fontSize: '48px',
+      verticalAlign: 'middle'
+    }}
+  >
+    🐺
+  </span>{' '}
+  Lobos Vôlei
+</h1>
 
   <div
     style={{
