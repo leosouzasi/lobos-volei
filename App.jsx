@@ -151,7 +151,21 @@ export default function App(){
   async function limparSorteio(){ await supabase.from('volei_eventos').update({times:''}).eq('id',eventoId); setTimes([]); await carregarEventos(); aviso('Sorteio limpo.') }
 
   return <div className="app"><div className="container">
-    <header className="hero"><div className="raio">🐺</div><h1>Lobos Vôlei</h1><p>Quem vai pra quadra hoje?</p></header>
+    <header className="hero">
+  <div className="raio">🐺</div>
+  <h1>Lobos Vôlei</h1>
+
+  <div style={{
+    marginTop: '12px',
+    fontSize: '14px',
+    lineHeight: '1.8',
+    color: '#d8eaff'
+  }}>
+    <div>📍 F4 Esportes</div>
+    <div>💰 Não mensalistas: R$ 7,00</div>
+    <div>⚠️ Pagamento até 12h de quinta-feira.</div>
+  </div>
+</header>
     {mensagem && <div className="toast">{mensagem}</div>}
 
     <section className="card"><h2>📅 Próximos Vôleis</h2>{eventos.length===0?<p className="muted">Nenhum vôlei aberto ainda.</p>:<select value={eventoId} onChange={e=>setEventoId(e.target.value)}>{eventos.map(ev=><option key={ev.id} value={ev.id}>{ev.nome}</option>)}</select>}{eventoSelecionado&&<div className="event-box"><div><strong>{eventoSelecionado.nome}</strong><span>{formatarData(eventoSelecionado.data_evento)}</span></div><div className="vagas"><strong>{confirmados.length}/{limiteVagas}</strong><span>{vagasRestantes>0?`faltam ${vagasRestantes} vagas`:`lista cheia • ${espera.length} na espera`}</span></div></div>}</section>
