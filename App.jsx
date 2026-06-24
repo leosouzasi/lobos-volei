@@ -203,19 +203,20 @@ export default function App(){
       <button
         className="primary mini"
         onClick={() => {
-          const mensagem = encodeURIComponent(
+        
+const mensagem = encodeURIComponent(
 `🏐 Lobos Vôlei
 
 Lista aberta!
 
-📍 F4 Esportes
-💰 Não mensalistas: R$ 7,00
-⚠️ Pagamento até 12h de quinta-feira
+📍 Local: F4 Esportes
+💵 Não mensalistas: R$ 7,00
+⏰ Pagamento até 12h de quinta-feira
 
 Confirme sua presença no link abaixo 👇
 
 https://lobos-volei.vercel.app/`
-          )
+)
 
           window.open(
             `https://wa.me/?text=${mensagem}`,
