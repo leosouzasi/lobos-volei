@@ -137,6 +137,27 @@ export default function App(){
     const {error}=await supabase.from('volei_presencas').insert([{evento_id:eventoId,jogador:limpo,status,pix_pago:false,tipo_pagamento:'nao_paguei'}])
     if(error) return aviso('Não consegui adicionar.'); setAdminNome(''); setAdminNomeManual(''); await carregarPresencas(eventoId); aviso(status==='espera'?'Jogador foi para espera.':'Jogador adicionado.')
   }
+  async function adminRemoverPresenca(p){
+    const confirmar=window.confirm(`Remover ${p.jogador} da lista?`)
+    if(!confirmar) return
+
+    const eraConfirmado=p.status!=='espera'
+
+    const {error}=await supabase
+      .from('volei_presencas')
+      .delete()
+      .eq('id',p.id)
+
+    if(error) return aviso('Não consegui remover da lista.')
+
+    await carregarPresencas(eventoId)
+
+    if(eraConfirmado){
+      await promoverPrimeiroDaEspera()
+    }
+
+    aviso(`${p.jogador} removido da lista.`)
+  }
   function jogadorInfo(nomeJogador){ const j=jogadores.find(x=>x.nome?.toLowerCase()===nomeJogador?.toLowerCase()); const nivel=j?.nivel||'Intermediário'; return {nome:nomeJogador,sexo:j?.sexo||'M',nivel,pontos:pontosNivel(nivel)} }
   function sortearTimesBalanceados(){
     const lista=confirmados.map(p=>jogadorInfo(p.jogador)); const embaralhados=embaralhar(lista).sort((a,b)=>b.pontos-a.pontos)
