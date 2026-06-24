@@ -191,6 +191,49 @@ export default function App(){
     {espera.length>0&&<section className="card wait"><h2>⏳ Lista de espera</h2><div className="players">{espera.map((p,index)=><div className="player wait-player" key={p.id}><div className="numero">{index+1}</div><div className="avatar small">{inicial(p.jogador)}</div><span>{p.jogador}</span><span className="status espera">Espera</span></div>)}</div></section>}
     {timesPublicos.length>0&&<section className="card sorteio-publico"><h2>🎲 Times sorteados</h2>{timesPublicos.map((time,i)=><div className="time-box" key={i}>{time.map((linha,idx)=>idx===0?<h3 key={idx}>{linha}</h3>:<div key={idx}>{linha}</div>)}</div>)}</section>}
 
-    <section className="card"><button className="admin-toggle" onClick={()=>setAdminAberto(!adminAberto)}>👑 Área Admin</button>{adminAberto&&!adminLogado&&<div className="admin-login"><input placeholder="usuário" value={usuarioAdmin} onChange={e=>setUsuarioAdmin(e.target.value)}/><input placeholder="senha" type="password" value={senhaAdmin} onChange={e=>setSenhaAdmin(e.target.value)}/><button className="primary" onClick={loginAdmin}>Entrar</button></div>}{adminAberto&&adminLogado&&<div className="admin-panel"><button className="ghost" onClick={sairAdmin}>Sair do admin</button><h3>Criar novo Vôlei</h3><input type="datetime-local" value={novaData} onChange={e=>setNovaData(e.target.value)}/><input type="number" min="6" placeholder="Número de vagas" value={novoLimite} onChange={e=>setNovoLimite(e.target.value)}/><button className="primary" onClick={criarEvento}>Criar vôlei</button><h3>Adicionar jogador na lista</h3><select value={adminNome} onChange={e=>setAdminNome(e.target.value)}><option value="">Escolha um jogador</option>{jogadores.map(j=><option key={j.nome} value={j.nome}>{j.nome}</option>)}</select><input placeholder="Ou digite novo nome" value={adminNomeManual} onChange={e=>setAdminNomeManual(e.target.value)}/><button className="primary" onClick={adminAdicionarJogador}>Adicionar jogador</button><button className="ghost" onClick={()=>setCadastroAberto(!cadastroAberto)}>{cadastroAberto?'Ocultar jogadores':'👥 Definir sexo e nível'}</button>{cadastroAberto&&<><h3>Sexo e nível</h3>{jogadores.map(j=><div className="admin-row nivel-row" key={j.nome}><span>{j.nome}</span><div className="nivel-controls"><select className="sexo-select" value={j.sexo||'M'} onChange={e=>atualizarSexo(j,e.target.value)}><option value="M">Masculino</option><option value="F">Feminino</option></select><select className="nivel-select" value={j.nivel||'Intermediário'} onChange={e=>atualizarNivel(j,e.target.value)}><option value="Avançado">Avançado</option><option value="Intermediário alto">Intermediário alto</option><option value="Intermediário">Intermediário</option><option value="Iniciante">Iniciante</option></select></div></div>)}</>}<h3>Eventos abertos</h3>{eventos.map(ev=><div className="admin-row" key={ev.id}><span>{ev.nome} • {ev.limite_vagas||LIMITE_PADRAO} vagas</span><button className="danger mini" onClick={()=>fecharEvento(ev.id)}>Fechar</button></div>)}<button className="ghost" onClick={()=>setHistoricoAberto(!historicoAberto)}>{historicoAberto?'Ocultar encerrados':'📜 Ver eventos encerrados'}</button>{historicoAberto&&<><h3>Histórico</h3>{historico.map(ev=><div className="admin-row" key={ev.id}><span>{ev.nome}</span><button className="ghost mini" onClick={()=>reabrirEvento(ev.id)}>Reabrir</button></div>)}</>}<h3>Pagamentos e lista</h3>{presencas.map((p,index)=><div className="admin-row" key={p.id}><span>{index+1}. {p.jogador} [{p.status==='espera'?'Espera':'Confirmado'}]</span><div className="admin-actions">{p.status==='espera'?<button className="paid mini" onClick={()=>adminPromover(p)}>Promover</button>:<button className="ghost mini" onClick={()=>adminMoverParaEspera(p)}>Mover p/ espera</button>}<button className={p.pix_pago?'paid mini':'ghost mini'} onClick={()=>adminMarcarPago(p)}>{p.tipo_pagamento==='mensal'?'Mensal':p.pix_pago?'Pago':'Pendente'}</button></div></div>)}<h3>Sorteio de times</h3><button className="primary" onClick={sortearTimes}>🎲 Sortear 3 times</button><button className="ghost" onClick={limparSorteio}>Limpar sorteio público</button>{sorteando&&<div className="shuffle">Montando times equilibrados... 🐺</div>}{times.map((time,i)=><div className="time-box" key={i}><h3>{time.nome} — {time.pontos} pontos</h3>{time.jogadores.map((j,idx)=><div key={idx}>- {j.nome} ({j.nivel})</div>)}</div>)}</div>}</section>
+    <section className="card"><button className="admin-toggle" onClick={()=>setAdminAberto(!adminAberto)}>👑 Área Admin</button>{adminAberto&&!adminLogado&&<div className="admin-login"><input placeholder="usuário" value={usuarioAdmin} onChange={e=>setUsuarioAdmin(e.target.value)}/><input placeholder="senha" type="password" value={senhaAdmin} onChange={e=>setSenhaAdmin(e.target.value)}/><button className="primary" onClick={loginAdmin}>Entrar</button></div>}{adminAberto&&adminLogado&&<div className="admin-panel"><button className="ghost" onClick={sairAdmin}>Sair do admin</button><h3>Criar novo Vôlei</h3><input type="datetime-local" value={novaData} onChange={e=>setNovaData(e.target.value)}/><input type="number" min="6" placeholder="Número de vagas" value={novoLimite} onChange={e=>setNovoLimite(e.target.value)}/><button className="primary" onClick={criarEvento}>Criar vôlei</button><h3>Adicionar jogador na lista</h3><select value={adminNome} onChange={e=>setAdminNome(e.target.value)}><option value="">Escolha um jogador</option>{jogadores.map(j=><option key={j.nome} value={j.nome}>{j.nome}</option>)}</select><input placeholder="Ou digite novo nome" value={adminNomeManual} onChange={e=>setAdminNomeManual(e.target.value)}/><button className="primary" onClick={adminAdicionarJogador}>Adicionar jogador</button><button className="ghost" onClick={()=>setCadastroAberto(!cadastroAberto)}>{cadastroAberto?'Ocultar jogadores':'👥 Definir sexo e nível'}</button>{cadastroAberto&&<><h3>Sexo e nível</h3>{jogadores.map(j=><div className="admin-row nivel-row" key={j.nome}><span>{j.nome}</span><div className="nivel-controls"><select className="sexo-select" value={j.sexo||'M'} onChange={e=>atualizarSexo(j,e.target.value)}><option value="M">Masculino</option><option value="F">Feminino</option></select><select className="nivel-select" value={j.nivel||'Intermediário'} onChange={e=>atualizarNivel(j,e.target.value)}><option value="Avançado">Avançado</option><option value="Intermediário alto">Intermediário alto</option><option value="Intermediário">Intermediário</option><option value="Iniciante">Iniciante</option></select></div></div>)}</>}<h3>Eventos abertos</h3>
+
+{eventos.map(ev => (
+  <div className="admin-row" key={ev.id}>
+    <span>
+      {ev.nome} • {ev.limite_vagas || LIMITE_PADRAO} vagas
+    </span>
+
+    <div className="admin-actions">
+      <button
+        className="primary mini"
+        onClick={() => {
+          const mensagem = encodeURIComponent(
+`🏐 Lobos Vôlei
+
+Lista aberta!
+
+📍 F4 Esportes
+💰 Não mensalistas: R$ 7,00
+⚠️ Pagamento até 12h de quinta-feira
+
+Confirme sua presença no link abaixo 👇
+
+https://lobos-volei.vercel.app/`
+          )
+
+          window.open(
+            `https://wa.me/?text=${mensagem}`,
+            '_blank'
+          )
+        }}
+      >
+        📲 Compartilhar link
+      </button>
+
+      <button
+        className="danger mini"
+        onClick={() => fecharEvento(ev.id)}
+      >
+        Fechar
+      </button>
+    </div>
+  </div>
+))}<button className="ghost" onClick={()=>setHistoricoAberto(!historicoAberto)}>{historicoAberto?'Ocultar encerrados':'📜 Ver eventos encerrados'}</button>{historicoAberto&&<><h3>Histórico</h3>{historico.map(ev=><div className="admin-row" key={ev.id}><span>{ev.nome}</span><button className="ghost mini" onClick={()=>reabrirEvento(ev.id)}>Reabrir</button></div>)}</>}<h3>Pagamentos e lista</h3>{presencas.map((p,index)=><div className="admin-row" key={p.id}><span>{index+1}. {p.jogador} [{p.status==='espera'?'Espera':'Confirmado'}]</span><div className="admin-actions">{p.status==='espera'?<button className="paid mini" onClick={()=>adminPromover(p)}>Promover</button>:<button className="ghost mini" onClick={()=>adminMoverParaEspera(p)}>Mover p/ espera</button>}<button className={p.pix_pago?'paid mini':'ghost mini'} onClick={()=>adminMarcarPago(p)}>{p.tipo_pagamento==='mensal'?'Mensal':p.pix_pago?'Pago':'Pendente'}</button></div></div>)}<h3>Sorteio de times</h3><button className="primary" onClick={sortearTimes}>🎲 Sortear 3 times</button><button className="ghost" onClick={limparSorteio}>Limpar sorteio público</button>{sorteando&&<div className="shuffle">Montando times equilibrados... 🐺</div>}{times.map((time,i)=><div className="time-box" key={i}><h3>{time.nome} — {time.pontos} pontos</h3>{time.jogadores.map((j,idx)=><div key={idx}>- {j.nome} ({j.nivel})</div>)}</div>)}</div>}</section>
   </div></div>
 }
