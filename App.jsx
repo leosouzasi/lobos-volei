@@ -65,12 +65,24 @@ export default function App(){
     const faltantes=jogadoresPadrao.filter(p=>!nomesBanco.some(n=>n.toLowerCase()===p.toLowerCase())).map(nome=>({nome,sexo:'M',nivel:'Intermediário'}))
     setJogadores([...data,...faltantes].sort((a,b)=>a.nome.localeCompare(b.nome)))
   }
-  async function carregarPresencas(id){
-    const {data}=await supabase.from('volei_presencas').select('*').eq('evento_id',id)
-    const lista=(data||[]).sort((a,b)=>{ const sa=a.status==='espera'?1:0; const sb=b.status==='espera'?1:0; if(sa!==sb) return sa-sb; return a.jogador.localeCompare(b.jogador) })
-    setPresencas(lista)
-  }
+async function carregarPresencas(id){
+  const {data}=await supabase.from('volei_presencas').select('*').eq('evento_id',id)
 
+  const lista=(data||[]).sort((a,b)=>{
+    const sa=a.status==='espera'?1:0
+    const sb=b.status==='espera'?1:0
+
+    if(sa!==sb) return sa-sb
+
+    if(a.status==='espera'){
+      return new Date(a.criado_em)-new Date(b.criado_em)
+    }
+
+    return a.jogador.localeCompare(b.jogador)
+  })
+
+  setPresencas(lista)
+}
   const eventoSelecionado=useMemo(()=>eventos.find(e=>e.id===eventoId),[eventos,eventoId])
   const nomeAtual=normalizarNome(modoOutroNome?nomeManual:nome)
   const minhaPresenca=useMemo(()=>presencas.find(p=>p.jogador?.toLowerCase()===nomeAtual?.toLowerCase()),[presencas,nomeAtual])
