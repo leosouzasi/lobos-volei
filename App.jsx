@@ -100,68 +100,16 @@ async function carregarPresencas(id){
     if(jogadores.some(j=>j.nome?.toLowerCase()===limpo.toLowerCase())) return
     await supabase.from('volei_jogadores').insert([{nome:limpo,sexo:'M',nivel:'Intermediário'}]); await carregarJogadores()
   }
- async function confirmarPresenca(){
-  const limpo = nomeAtual
-
-  if(!eventoId) return aviso('Escolha um vôlei primeiro.')
-  if(!limpo) return aviso('Escolha ou digite seu nome.')
-
-  if(presencas.find(p=>p.jogador?.toLowerCase()===limpo.toLowerCase())){
-    setNome(limpo)
-    localStorage.setItem('lobos_nome', limpo)
-    setPixAberto(true)
-    copiarPix(false)
-    return aviso('Você já está na lista 😎')
-  }
-
-  setCarregando(true)
-
-  // Consulta o banco antes de confirmar
-  const { data: listaAtual } = await supabase
-    .from('volei_presencas')
-    .select('status')
-    .eq('evento_id', eventoId)
-
-  const confirmadosAtuais = (listaAtual || []).filter(p => p.status !== 'espera').length
-
-  const status = confirmadosAtuais >= limiteVagas
-    ? 'espera'
-    : 'confirmado'
-
-  const pixPago = pagamento === 'mensal' || pagamento === 'pago'
-
-  await salvarJogadorSeNovo(limpo)
-
-  const { error } = await supabase
-    .from('volei_presencas')
-    .insert([{
-      evento_id: eventoId,
-      jogador: limpo,
-      status,
-      pix_pago: pixPago,
-      tipo_pagamento: pagamento
-    }])
-
-  setCarregando(false)
-
-  if(error) return aviso('Não consegui confirmar presença.')
-
-  setNome(limpo)
-  localStorage.setItem('lobos_nome', limpo)
-
-  await carregarPresencas(eventoId)
-
-  if(!pixPago){
-    setPixAberto(true)
-    copiarPix(false)
-  }
-
-  aviso(
-    status === 'espera'
-      ? 'Lista cheia! Você entrou na espera.'
-      : 'Presença confirmada 🐺'
-  )
-
+  async function confirmarPresenca(){
+    const limpo=nomeAtual; if(!eventoId) return aviso('Escolha um vôlei primeiro.'); if(!limpo) return aviso('Escolha ou digite seu nome.')
+    if(presencas.find(p=>p.jogador?.toLowerCase()===limpo.toLowerCase())){ setNome(limpo); localStorage.setItem('lobos_nome',limpo); setPixAberto(true); copiarPix(false); return aviso('Você já está na lista 😎') }
+    const status=eventoLotado?'espera':'confirmado'; const pixPago=pagamento==='mensal'||pagamento==='pago'
+    setCarregando(true); await salvarJogadorSeNovo(limpo)
+    const {error}=await supabase.from('volei_presencas').insert([{evento_id:eventoId,jogador:limpo,status,pix_pago:pixPago,tipo_pagamento:pagamento}])
+    setCarregando(false); if(error) return aviso('Não consegui confirmar presença.')
+    setNome(limpo); localStorage.setItem('lobos_nome',limpo); await carregarPresencas(eventoId)
+    if(!pixPago){ setPixAberto(true); copiarPix(false) }
+    aviso(status==='espera'?'Lista cheia! Você entrou na espera.':'Presença confirmada 🐺')
   }
   async function retirarNome(){
     if(!minhaPresenca) return aviso('Seu nome ainda não está na lista.')
@@ -192,28 +140,7 @@ async function carregarPresencas(id){
   async function atualizarSexo(jogador,sexo){ await supabase.from('volei_jogadores').update({sexo}).eq('nome',jogador.nome); await carregarJogadores() }
   async function atualizarNivel(jogador,nivel){ await supabase.from('volei_jogadores').update({nivel}).eq('nome',jogador.nome); await carregarJogadores() }
   async function adminMarcarPago(p){ await supabase.from('volei_presencas').update({pix_pago:!p.pix_pago,tipo_pagamento:!p.pix_pago?'pago':'nao_paguei'}).eq('id',p.id); await carregarPresencas(eventoId) }
-  
-  async function adminPromover(p){
-
-  const { data } = await supabase
-    .from('volei_presencas')
-    .select('status')
-    .eq('evento_id', eventoId)
-
-  const confirmados = (data || []).filter(x => x.status !== 'espera').length
-
-  if(confirmados >= limiteVagas){
-    return aviso('Não tem vaga livre.')
-  }
-
-  await supabase
-    .from('volei_presencas')
-    .update({ status: 'confirmado' })
-    .eq('id', p.id)
-
-  await carregarPresencas(eventoId)
-}
-  
+  async function adminPromover(p){ if(vagasRestantes<=0) return aviso('Não tem vaga livre.'); await supabase.from('volei_presencas').update({status:'confirmado'}).eq('id',p.id); await carregarPresencas(eventoId) }
   async function adminMoverParaEspera(p){ await supabase.from('volei_presencas').update({status:'espera'}).eq('id',p.id); await carregarPresencas(eventoId) }
   async function adminAdicionarJogador(){
     const limpo=normalizarNome(adminNomeManual||adminNome); if(!limpo) return aviso('Escolha ou digite um nome.'); if(!eventoId) return aviso('Escolha um evento.')
