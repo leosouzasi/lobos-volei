@@ -66,20 +66,19 @@ export default function App(){
     setJogadores([...data,...faltantes].sort((a,b)=>a.nome.localeCompare(b.nome)))
   }
 async function carregarPresencas(id){
-  const {data}=await supabase
-    .from('volei_presencas')
-    .select('*')
-    .eq('evento_id',id)
+  const {data}=await supabase.from('volei_presencas').select('*').eq('evento_id',id)
 
   const lista=(data||[]).sort((a,b)=>{
     const sa=a.status==='espera'?1:0
     const sb=b.status==='espera'?1:0
 
-    // Confirmados primeiro, espera depois
     if(sa!==sb) return sa-sb
 
-    // Dentro de cada lista, mantém a ordem em que entrou
-    return new Date(a.criado_em)-new Date(b.criado_em)
+    if(a.status==='espera'){
+      return new Date(a.criado_em)-new Date(b.criado_em)
+    }
+
+    return a.jogador.localeCompare(b.jogador)
   })
 
   setPresencas(lista)
