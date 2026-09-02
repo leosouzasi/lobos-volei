@@ -78,7 +78,7 @@ async function carregarPresencas(id){
       return new Date(a.criado_em)-new Date(b.criado_em)
     }
 
-    return a.jogador.localeCompare(b.jogador)
+    return new Date(a.criado_em)-new Date(b.criado_em)
   })
 
   setPresencas(lista)
