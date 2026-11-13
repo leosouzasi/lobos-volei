@@ -66,7 +66,7 @@ export default function App(){
     setMovimentacoes(data||[])
   }
   function nomeAcaoMovimentacao(acao){
-    const nomes={inscricao_confirmada:'Inscrição confirmada',entrada_na_espera:'Entrou na lista de espera',promovido_para_confirmado:'Promovido para confirmado',movido_para_espera:'Movido para a lista de espera',saida_voluntaria:'Saiu voluntariamente',removido_pelo_admin:'Removido pelo administrador',inscricao_excluida:'Inscrição excluída'}
+    const nomes={inscricao_confirmada:'Entrou na lista',entrada_na_espera:'Entrou na lista de espera',promovido_para_confirmado:'Subiu da lista de espera',movido_para_espera:'Foi para a lista de espera',saida_voluntaria:'Saiu da lista',removido_pelo_admin:'Saiu da lista (remoção do administrador)',inscricao_excluida:'Saiu da lista'}
     return nomes[acao]||acao||'Movimentação'
   }
   async function carregarJogadores(){
