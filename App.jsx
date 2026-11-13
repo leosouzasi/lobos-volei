@@ -43,11 +43,12 @@ export default function App(){
   const [cadastroAberto,setCadastroAberto]=useState(false)
   const [historico,setHistorico]=useState([])
   const [historicoAberto,setHistoricoAberto]=useState(false)
+  const [movimentacoes,setMovimentacoes]=useState([])
   const [times,setTimes]=useState([])
   const [sorteando,setSorteando]=useState(false)
 
   useEffect(()=>{ carregarTudo() },[])
-  useEffect(()=>{ if(eventoId) carregarPresencas(eventoId) },[eventoId])
+  useEffect(()=>{ if(eventoId){ carregarPresencas(eventoId); carregarMovimentacoes(eventoId) } else { setPresencas([]); setMovimentacoes([]) } },[eventoId])
 
   async function carregarTudo(){ await carregarJogadores(); await carregarEventos(); await carregarHistorico() }
   async function carregarEventos(){
@@ -57,6 +58,16 @@ export default function App(){
   async function carregarHistorico(){
     const {data}=await supabase.from('volei_eventos').select('*').eq('aberto',false).order('data_evento',{ascending:false}).limit(30)
     setHistorico(data||[])
+  }
+  async function carregarMovimentacoes(id=eventoId){
+    if(!id){ setMovimentacoes([]); return }
+    const {data,error}=await supabase.from('volei_movimentacoes').select('*').eq('evento_id',id).order('criado_em',{ascending:false}).limit(200)
+    if(error){ console.error('Erro ao carregar movimentações:',error); return }
+    setMovimentacoes(data||[])
+  }
+  function nomeAcaoMovimentacao(acao){
+    const nomes={inscricao_confirmada:'Inscrição confirmada',entrada_na_espera:'Entrou na lista de espera',promovido_para_confirmado:'Promovido para confirmado',movido_para_espera:'Movido para a lista de espera',saida_voluntaria:'Saiu voluntariamente',removido_pelo_admin:'Removido pelo administrador',inscricao_excluida:'Inscrição excluída'}
+    return nomes[acao]||acao||'Movimentação'
   }
   async function carregarJogadores(){
     const {data,error}=await supabase.from('volei_jogadores').select('id,nome,sexo,nivel').order('nome',{ascending:true})
@@ -105,22 +116,25 @@ async function carregarPresencas(id){
     if(presencas.find(p=>p.jogador?.toLowerCase()===limpo.toLowerCase())){ setNome(limpo); localStorage.setItem('lobos_nome',limpo); setPixAberto(true); copiarPix(false); return aviso('Você já está na lista 😎') }
     const status=eventoLotado?'espera':'confirmado'; const pixPago=pagamento==='mensal'||pagamento==='pago'
     setCarregando(true); await salvarJogadorSeNovo(limpo)
-    const {error}=await supabase.from('volei_presencas').insert([{evento_id:eventoId,jogador:limpo,status,pix_pago:pixPago,tipo_pagamento:pagamento}])
-    setCarregando(false); if(error) return aviso('Não consegui confirmar presença.')
-    setNome(limpo); localStorage.setItem('lobos_nome',limpo); await carregarPresencas(eventoId)
+    const {data:inscricao,error}=await supabase.rpc('volei_inscrever',{p_evento_id:eventoId,p_jogador:limpo})
+    if(error || !inscricao?.sucesso){ setCarregando(false); return aviso(error?.message||'Não consegui confirmar presença.') }
+    const {error:pagamentoError}=await supabase.from('volei_presencas').update({pix_pago:pixPago,tipo_pagamento:pagamento}).eq('id',inscricao.id)
+    setCarregando(false); if(pagamentoError) console.error('Inscrição criada, mas não foi possível atualizar o pagamento:',pagamentoError)
+    const statusReal=inscricao.status||status
+    setNome(limpo); localStorage.setItem('lobos_nome',limpo); await carregarPresencas(eventoId); await carregarMovimentacoes(eventoId)
     if(!pixPago){ setPixAberto(true); copiarPix(false) }
-    aviso(status==='espera'?'Lista cheia! Você entrou na espera.':'Presença confirmada 🐺')
+    aviso(statusReal==='espera'?'Lista cheia! Você entrou na espera.':'Presença confirmada 🐺')
   }
   async function retirarNome(){
     if(!minhaPresenca) return aviso('Seu nome ainda não está na lista.')
-    const {error}=await supabase.from('volei_presencas').delete().eq('id',minhaPresenca.id)
+    const {error}=await supabase.rpc('volei_excluir_presenca',{p_presenca_id:minhaPresenca.id,p_acao:'saida_voluntaria',p_realizado_por:nomeAtual})
     if(error) return aviso('Não consegui retirar seu nome.')
-    await carregarPresencas(eventoId); await promoverPrimeiroDaEspera(); aviso('Nome retirado da lista.')
+    await carregarPresencas(eventoId); await promoverPrimeiroDaEspera(); await carregarMovimentacoes(eventoId); aviso('Nome retirado da lista.')
   }
   async function promoverPrimeiroDaEspera(){
     const {data}=await supabase.from('volei_presencas').select('*').eq('evento_id',eventoId)
     const lista=data||[]; const conf=lista.filter(p=>p.status!=='espera'); const esp=lista.filter(p=>p.status==='espera').sort((a,b)=>new Date(a.criado_em)-new Date(b.criado_em))
-    if(conf.length<limiteVagas && esp.length>0){ await supabase.from('volei_presencas').update({status:'confirmado'}).eq('id',esp[0].id); await carregarPresencas(eventoId); aviso(`${esp[0].jogador} saiu da espera e entrou na lista.`) }
+    if(conf.length<limiteVagas && esp.length>0){ await supabase.from('volei_presencas').update({status:'confirmado'}).eq('id',esp[0].id); await carregarPresencas(eventoId); await carregarMovimentacoes(eventoId); aviso(`${esp[0].jogador} saiu da espera e entrou na lista.`) }
   }
   async function marcarPixPago(){
     if(!minhaPresenca) return aviso('Confirme presença antes de marcar pagamento.')
@@ -140,14 +154,15 @@ async function carregarPresencas(id){
   async function atualizarSexo(jogador,sexo){ await supabase.from('volei_jogadores').update({sexo}).eq('nome',jogador.nome); await carregarJogadores() }
   async function atualizarNivel(jogador,nivel){ await supabase.from('volei_jogadores').update({nivel}).eq('nome',jogador.nome); await carregarJogadores() }
   async function adminMarcarPago(p){ await supabase.from('volei_presencas').update({pix_pago:!p.pix_pago,tipo_pagamento:!p.pix_pago?'pago':'nao_paguei'}).eq('id',p.id); await carregarPresencas(eventoId) }
-  async function adminPromover(p){ if(vagasRestantes<=0) return aviso('Não tem vaga livre.'); await supabase.from('volei_presencas').update({status:'confirmado'}).eq('id',p.id); await carregarPresencas(eventoId) }
-  async function adminMoverParaEspera(p){ await supabase.from('volei_presencas').update({status:'espera'}).eq('id',p.id); await carregarPresencas(eventoId) }
+  async function adminPromover(p){ if(vagasRestantes<=0) return aviso('Não tem vaga livre.'); const {error}=await supabase.from('volei_presencas').update({status:'confirmado'}).eq('id',p.id); if(error) return aviso('Não consegui promover.'); await carregarPresencas(eventoId); await carregarMovimentacoes(eventoId) }
+  async function adminMoverParaEspera(p){ const {error}=await supabase.from('volei_presencas').update({status:'espera'}).eq('id',p.id); if(error) return aviso('Não consegui mover para a espera.'); await carregarPresencas(eventoId); await carregarMovimentacoes(eventoId) }
   async function adminAdicionarJogador(){
     const limpo=normalizarNome(adminNomeManual||adminNome); if(!limpo) return aviso('Escolha ou digite um nome.'); if(!eventoId) return aviso('Escolha um evento.')
     if(presencas.find(p=>p.jogador?.toLowerCase()===limpo.toLowerCase())) return aviso('Esse nome já está nesse vôlei.')
     const status=eventoLotado?'espera':'confirmado'; await salvarJogadorSeNovo(limpo)
-    const {error}=await supabase.from('volei_presencas').insert([{evento_id:eventoId,jogador:limpo,status,pix_pago:false,tipo_pagamento:'nao_paguei'}])
-    if(error) return aviso('Não consegui adicionar.'); setAdminNome(''); setAdminNomeManual(''); await carregarPresencas(eventoId); aviso(status==='espera'?'Jogador foi para espera.':'Jogador adicionado.')
+    const {data:inscricao,error}=await supabase.rpc('volei_inscrever',{p_evento_id:eventoId,p_jogador:limpo})
+    if(error || !inscricao?.sucesso) return aviso(error?.message||'Não consegui adicionar.')
+    setAdminNome(''); setAdminNomeManual(''); await carregarPresencas(eventoId); await carregarMovimentacoes(eventoId); aviso((inscricao.status||status)==='espera'?'Jogador foi para espera.':'Jogador adicionado.')
   }
   async function adminRemoverPresenca(p){
     const confirmar=window.confirm(`Remover ${p.jogador} da lista?`)
@@ -155,10 +170,7 @@ async function carregarPresencas(id){
 
     const eraConfirmado=p.status!=='espera'
 
-    const {error}=await supabase
-      .from('volei_presencas')
-      .delete()
-      .eq('id',p.id)
+    const {error}=await supabase.rpc('volei_excluir_presenca',{p_presenca_id:p.id,p_acao:'removido_pelo_admin',p_realizado_por:usuarioAdmin||'Administrador'})
 
     if(error) return aviso('Não consegui remover da lista.')
 
@@ -167,6 +179,7 @@ async function carregarPresencas(id){
     if(eraConfirmado){
       await promoverPrimeiroDaEspera()
     }
+    await carregarMovimentacoes(eventoId)
 
     aviso(`${p.jogador} removido da lista.`)
   }
@@ -270,6 +283,6 @@ https://lobos-volei.vercel.app/`
       </button>
     </div>
   </div>
-))}<button className="ghost" onClick={()=>setHistoricoAberto(!historicoAberto)}>{historicoAberto?'Ocultar encerrados':'📜 Ver eventos encerrados'}</button>{historicoAberto&&<><h3>Histórico</h3>{historico.map(ev=><div className="admin-row" key={ev.id}><span>{ev.nome}</span><button className="ghost mini" onClick={()=>reabrirEvento(ev.id)}>Reabrir</button></div>)}</>}<h3>Pagamentos e lista</h3>{presencas.map((p,index)=><div className="admin-row" key={p.id}><span>{index+1}. {p.jogador} {p.status==='espera'?'[Espera]':''}</span><div className="admin-actions">{p.status==='espera'?<button className="paid mini" onClick={()=>adminPromover(p)}>Promover</button>:<button className="ghost mini" onClick={()=>adminMoverParaEspera(p)}>Espera</button>}<button className={p.pix_pago?'paid mini':'ghost mini'} onClick={()=>adminMarcarPago(p)}>{p.tipo_pagamento==='mensal'?'Mensal':p.pix_pago?'Pago':'Pendente'}</button><button className="danger mini" onClick={()=>adminRemoverPresenca(p)}>Remover</button></div></div>)}<h3>Sorteio de times</h3><button className="primary" onClick={sortearTimes}>🎲 Sortear 3 times</button><button className="ghost" onClick={limparSorteio}>Limpar sorteio público</button>{sorteando&&<div className="shuffle">Montando times equilibrados... 🐺</div>}{times.map((time,i)=><div className="time-box" key={i}><h3>{time.nome} — {time.pontos} pontos</h3>{time.jogadores.map((j,idx)=><div key={idx}>- {j.nome} ({j.nivel})</div>)}</div>)}</div>}</section>
+))}<button className="ghost" onClick={()=>setHistoricoAberto(!historicoAberto)}>{historicoAberto?'Ocultar encerrados':'📜 Ver eventos encerrados'}</button>{historicoAberto&&<><h3>Histórico</h3>{historico.map(ev=><div className="admin-row" key={ev.id}><span>{ev.nome}</span><button className="ghost mini" onClick={()=>reabrirEvento(ev.id)}>Reabrir</button></div>)}</>}<h3>Pagamentos e lista</h3>{presencas.map((p,index)=><div className="admin-row" key={p.id}><span>{index+1}. {p.jogador} {p.status==='espera'?'[Espera]':''}</span><div className="admin-actions">{p.status==='espera'?<button className="paid mini" onClick={()=>adminPromover(p)}>Promover</button>:<button className="ghost mini" onClick={()=>adminMoverParaEspera(p)}>Espera</button>}<button className={p.pix_pago?'paid mini':'ghost mini'} onClick={()=>adminMarcarPago(p)}>{p.tipo_pagamento==='mensal'?'Mensal':p.pix_pago?'Pago':'Pendente'}</button><button className="danger mini" onClick={()=>adminRemoverPresenca(p)}>Remover</button></div></div>)}<h3>📜 Histórico de movimentações deste evento</h3><button className="ghost mini" onClick={()=>carregarMovimentacoes(eventoId)}>Atualizar histórico</button>{movimentacoes.length===0?<p className="muted">Nenhuma movimentação registrada para este evento.</p>:<div className="movement-log">{movimentacoes.map(m=><div className="admin-row" key={m.id}><div><strong>{m.jogador}</strong><div className="muted">{nomeAcaoMovimentacao(m.acao)}{m.detalhes?` • ${m.detalhes}`:''}</div><small>{formatarData(m.criado_em)}</small></div></div>)}</div>}<h3>Sorteio de times</h3><button className="primary" onClick={sortearTimes}>🎲 Sortear 3 times</button><button className="ghost" onClick={limparSorteio}>Limpar sorteio público</button>{sorteando&&<div className="shuffle">Montando times equilibrados... 🐺</div>}{times.map((time,i)=><div className="time-box" key={i}><h3>{time.nome} — {time.pontos} pontos</h3>{time.jogadores.map((j,idx)=><div key={idx}>- {j.nome} ({j.nivel})</div>)}</div>)}</div>}</section>
   </div></div>
 }
