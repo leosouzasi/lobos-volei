@@ -71,10 +71,9 @@ export default function App(){
   }
   async function carregarJogadores(){
     const {data,error}=await supabase.from('volei_jogadores').select('id,nome,sexo,nivel').order('nome',{ascending:true})
-    if(error || !data || data.length===0){ setJogadores(jogadoresPadrao.map(nome=>({nome,sexo:'M',nivel:'Intermediário'}))); return }
-    const nomesBanco=data.map(j=>j.nome).filter(Boolean)
-    const faltantes=jogadoresPadrao.filter(p=>!nomesBanco.some(n=>n.toLowerCase()===p.toLowerCase())).map(nome=>({nome,sexo:'M',nivel:'Intermediário'}))
-    setJogadores([...data,...faltantes].sort((a,b)=>a.nome.localeCompare(b.nome)))
+    if(error){ console.error('Erro ao carregar jogadores:',error); aviso('Não consegui carregar os jogadores.'); return }
+    // A tabela do Supabase passa a ser a fonte oficial: assim, jogadores excluídos não reaparecem pela lista padrão.
+    setJogadores(data||[])
   }
 async function carregarPresencas(id){
   const {data}=await supabase.from('volei_presencas').select('*').eq('evento_id',id)
@@ -151,8 +150,43 @@ async function carregarPresencas(id){
   }
   async function fecharEvento(id){ const {error}=await supabase.from('volei_eventos').update({aberto:false}).eq('id',id); if(error) return aviso('Não consegui fechar o evento.'); if(eventoId===id){ setEventoId(''); setPresencas([]) } await carregarTudo(); aviso('Evento encerrado.') }
   async function reabrirEvento(id){ const {error}=await supabase.from('volei_eventos').update({aberto:true}).eq('id',id); if(error) return aviso('Não consegui reabrir.'); await carregarTudo(); aviso('Evento reaberto.') }
-  async function atualizarSexo(jogador,sexo){ await supabase.from('volei_jogadores').update({sexo}).eq('nome',jogador.nome); await carregarJogadores() }
-  async function atualizarNivel(jogador,nivel){ await supabase.from('volei_jogadores').update({nivel}).eq('nome',jogador.nome); await carregarJogadores() }
+  async function atualizarSexo(jogador,sexo){ await supabase.from('volei_jogadores').update({sexo}).eq('id',jogador.id); await carregarJogadores() }
+  async function atualizarNivel(jogador,nivel){ await supabase.from('volei_jogadores').update({nivel}).eq('id',jogador.id); await carregarJogadores() }
+  async function excluirJogador(jogador){
+    if(!jogador?.id) return aviso('Esse cadastro não possui um identificador válido.')
+
+    const confirmar=window.confirm(
+      `ATENÇÃO!\n\nExcluir ${jogador.nome} definitivamente?\n\n`+
+      'Serão apagados o cadastro, todas as inscrições em eventos e todas as movimentações históricas desse jogador.\n\n'+
+      'Essa ação não poderá ser desfeita.'
+    )
+    if(!confirmar) return
+
+    const presencaAtual=presencas.find(p=>p.jogador?.trim().toLowerCase()===jogador.nome.trim().toLowerCase())
+    const eraConfirmado=!!presencaAtual && presencaAtual.status!=='espera'
+
+    const {data,error}=await supabase.rpc('volei_excluir_jogador_completo',{
+      p_jogador_id:jogador.id,
+      p_jogador_nome:jogador.nome
+    })
+
+    if(error || !data?.sucesso){
+      console.error('Erro ao excluir jogador:',error)
+      return aviso(error?.message||'Não consegui excluir o jogador.')
+    }
+
+    await carregarJogadores()
+    await carregarPresencas(eventoId)
+    await carregarMovimentacoes(eventoId)
+
+    if(eraConfirmado){
+      await promoverPrimeiroDaEspera()
+    }
+
+    await carregarTudo()
+    aviso(`${jogador.nome} foi excluído completamente.`)
+  }
+
   async function adminMarcarPago(p){ await supabase.from('volei_presencas').update({pix_pago:!p.pix_pago,tipo_pagamento:!p.pix_pago?'pago':'nao_paguei'}).eq('id',p.id); await carregarPresencas(eventoId) }
   async function adminPromover(p){ if(vagasRestantes<=0) return aviso('Não tem vaga livre.'); const {error}=await supabase.from('volei_presencas').update({status:'confirmado'}).eq('id',p.id); if(error) return aviso('Não consegui promover.'); await carregarPresencas(eventoId); await carregarMovimentacoes(eventoId) }
   async function adminMoverParaEspera(p){ const {error}=await supabase.from('volei_presencas').update({status:'espera'}).eq('id',p.id); if(error) return aviso('Não consegui mover para a espera.'); await carregarPresencas(eventoId); await carregarMovimentacoes(eventoId) }
@@ -239,7 +273,7 @@ async function carregarPresencas(id){
     {espera.length>0&&<section className="card wait"><h2>⏳ Lista de espera</h2><div className="players">{espera.map((p,index)=><div className="player wait-player" key={p.id}><div className="numero">{index+1}</div><div className="avatar small">{inicial(p.jogador)}</div><span>{p.jogador}</span><span className="status espera">Espera</span></div>)}</div></section>}
     {timesPublicos.length>0&&<section className="card sorteio-publico"><h2>🎲 Times sorteados</h2>{timesPublicos.map((time,i)=><div className="time-box" key={i}>{time.map((linha,idx)=>idx===0?<h3 key={idx}>{linha}</h3>:<div key={idx}>{linha}</div>)}</div>)}</section>}
 
-    <section className="card"><button className="admin-toggle" onClick={()=>setAdminAberto(!adminAberto)}>👑 Área Admin</button>{adminAberto&&!adminLogado&&<div className="admin-login"><input placeholder="usuário" value={usuarioAdmin} onChange={e=>setUsuarioAdmin(e.target.value)}/><input placeholder="senha" type="password" value={senhaAdmin} onChange={e=>setSenhaAdmin(e.target.value)}/><button className="primary" onClick={loginAdmin}>Entrar</button></div>}{adminAberto&&adminLogado&&<div className="admin-panel"><button className="ghost" onClick={sairAdmin}>Sair do admin</button><h3>Criar novo Vôlei</h3><input type="datetime-local" value={novaData} onChange={e=>setNovaData(e.target.value)}/><input type="number" min="6" placeholder="Número de vagas" value={novoLimite} onChange={e=>setNovoLimite(e.target.value)}/><button className="primary" onClick={criarEvento}>Criar vôlei</button><h3>Adicionar jogador na lista</h3><select value={adminNome} onChange={e=>setAdminNome(e.target.value)}><option value="">Escolha um jogador</option>{jogadores.map(j=><option key={j.nome} value={j.nome}>{j.nome}</option>)}</select><input placeholder="Ou digite novo nome" value={adminNomeManual} onChange={e=>setAdminNomeManual(e.target.value)}/><button className="primary" onClick={adminAdicionarJogador}>Adicionar jogador</button><button className="ghost" onClick={()=>setCadastroAberto(!cadastroAberto)}>{cadastroAberto?'Ocultar jogadores':'👥 Definir sexo e nível'}</button>{cadastroAberto&&<><h3>Sexo e nível</h3>{jogadores.map(j=><div className="admin-row nivel-row" key={j.nome}><span>{j.nome}</span><div className="nivel-controls"><select className="sexo-select" value={j.sexo||'M'} onChange={e=>atualizarSexo(j,e.target.value)}><option value="M">Masculino</option><option value="F">Feminino</option></select><select className="nivel-select" value={j.nivel||'Intermediário'} onChange={e=>atualizarNivel(j,e.target.value)}><option value="Avançado">Avançado</option><option value="Intermediário alto">Intermediário alto</option><option value="Intermediário">Intermediário</option><option value="Iniciante">Iniciante</option></select></div></div>)}</>}<h3>Eventos abertos</h3>
+    <section className="card"><button className="admin-toggle" onClick={()=>setAdminAberto(!adminAberto)}>👑 Área Admin</button>{adminAberto&&!adminLogado&&<div className="admin-login"><input placeholder="usuário" value={usuarioAdmin} onChange={e=>setUsuarioAdmin(e.target.value)}/><input placeholder="senha" type="password" value={senhaAdmin} onChange={e=>setSenhaAdmin(e.target.value)}/><button className="primary" onClick={loginAdmin}>Entrar</button></div>}{adminAberto&&adminLogado&&<div className="admin-panel"><button className="ghost" onClick={sairAdmin}>Sair do admin</button><h3>Criar novo Vôlei</h3><input type="datetime-local" value={novaData} onChange={e=>setNovaData(e.target.value)}/><input type="number" min="6" placeholder="Número de vagas" value={novoLimite} onChange={e=>setNovoLimite(e.target.value)}/><button className="primary" onClick={criarEvento}>Criar vôlei</button><h3>Adicionar jogador na lista</h3><select value={adminNome} onChange={e=>setAdminNome(e.target.value)}><option value="">Escolha um jogador</option>{jogadores.map(j=><option key={j.nome} value={j.nome}>{j.nome}</option>)}</select><input placeholder="Ou digite novo nome" value={adminNomeManual} onChange={e=>setAdminNomeManual(e.target.value)}/><button className="primary" onClick={adminAdicionarJogador}>Adicionar jogador</button><button className="ghost" onClick={()=>setCadastroAberto(!cadastroAberto)}>{cadastroAberto?'Ocultar jogadores':'👥 Gerenciar jogadores'}</button>{cadastroAberto&&<><h3>Gerenciar jogadores</h3><p className="muted">Excluir remove o nome das opções de cadastro, mas preserva inscrições e históricos dos eventos.</p>{jogadores.length===0?<p className="muted">Nenhum jogador cadastrado.</p>:jogadores.map(j=><div className="admin-row nivel-row" key={j.id}><span>{j.nome}</span><div className="nivel-controls"><select className="sexo-select" value={j.sexo||'M'} onChange={e=>atualizarSexo(j,e.target.value)}><option value="M">Masculino</option><option value="F">Feminino</option></select><select className="nivel-select" value={j.nivel||'Intermediário'} onChange={e=>atualizarNivel(j,e.target.value)}><option value="Avançado">Avançado</option><option value="Intermediário alto">Intermediário alto</option><option value="Intermediário">Intermediário</option><option value="Iniciante">Iniciante</option></select><button className="danger mini" onClick={()=>excluirJogador(j)}>Excluir</button></div></div>)}</>}<h3>Eventos abertos</h3>
 
 {eventos.map(ev => (
   <div className="admin-row" key={ev.id}>
